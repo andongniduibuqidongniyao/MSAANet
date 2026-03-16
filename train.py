@@ -58,8 +58,8 @@ if __name__ == "__main__":
     eval_flag           = True
     eval_period         = 50
     num_workers         = 4
-    train_annotation_path   = '/root/autodl-tmp/MSNet-main-01/MSNet-main/DIOR/2007_train.txt'
-    val_annotation_path     = '/root/autodl-tmp/MSNet-main-01/MSNet-main/DIOR/2007_val.txt'
+    train_annotation_path   = '/root/autodl-tmp/MSAANet-main-01/MSNet-main/DIOR/2007_train.txt'
+    val_annotation_path     = '/root/autodl-tmp/MSAANet-main-01/MSNet-main/DIOR/2007_val.txt'
 
     seed_everything(seed)
     ngpus_per_node  = torch.cuda.device_count()
