@@ -16,7 +16,7 @@ if __name__ == "__main__":
     nms_iou         = 0.5
     score_threhold  = 0.5
     map_vis         = False
-    VOCdevkit_path  = '/root/autodl-tmp/MSNet-main-01/MSNet-main/DIOR/VOCdevkit2007'
+    VOCdevkit_path  = '/root/autodl-tmp/MSAANet-main-01/MSAANet-main/DIOR/VOCdevkit2007'
     map_out_path    = 'map_out'
 
     image_ids = open(os.path.join(VOCdevkit_path, "VOC2007/ImageSets/Main/test.txt")).read().strip().split()
