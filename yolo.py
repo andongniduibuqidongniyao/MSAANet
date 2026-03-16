@@ -13,12 +13,12 @@ from utils.utils import (cvtColor, get_classes, preprocess_input,
 from utils.utils_bbox import DecodeBox
 class YOLO(object):
     _defaults = {
-        # "model_path": 'logs/nwpu/best_epoch_weights.pth',
+        "model_path": 'logs/nwpu/best_epoch_weights.pth',
         # "model_path": 'logs/RSOD/last_epoch_weights.pth',
         # "model_path": 'logs/hrrsd/last_epoch_weights.pth'
         # "model_path": 'logs/dota/best_epoch_weights.pth',
         
-        # "classes_path"      : 'Category_Files/nwpu.txt',
+        "classes_path"      : 'Category_Files/nwpu.txt',
         # "classes_path"      : 'Category_Files/dior.txt',
         # "classes_path"      :'Category_Files/rsod.txt',
         # "classes_path"      : 'Category_Files/dota.txt',
