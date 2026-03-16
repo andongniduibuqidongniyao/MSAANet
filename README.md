@@ -1,0 +1,1 @@
+Use `train.py` to run the training experiment; the data generated during training will be stored in the `log` folder. The generated weights must be used in the `get_results.py` file to produce the final results. Before generating the final results, you must specify the path to the class file and the weights for the relevant dataset in the `yolo.py` file.
