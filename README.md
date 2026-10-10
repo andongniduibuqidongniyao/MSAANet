@@ -1,1 +1,1 @@
-Once the dataset has been partitioned, use `train.py` to train the model; the data generated during training will be stored in the `log` folder. The generated weights must be used in the `get_results.py` file to produce the final results; before generating the final results, you must specify the path to the class files and the weights for the corresponding dataset in the `yolo.py` file.
+
