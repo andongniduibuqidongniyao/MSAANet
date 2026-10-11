@@ -42,9 +42,7 @@ class MsConv(nn.Module):
         x_2 = self.conv2_1(x)
         x_2 = self.conv2_2(x_2)
         x_00 = x+x_0+x_1+x_2
-        # print(f"x_00: {x_00.shape}")
         x = self.bn(self.conv3(x_00))
-        # print(f"x: {x.shape}")
         return x
 
 
@@ -65,17 +63,11 @@ class ConvSNP(nn.Module):
 
     def forward(self, x):
         return self.conv(self.act(self.bn(x)))
-        # print(f"Input shape: {x.shape}")  # 调试代码
-        # return self.act(self.bn(self.conv(x)))
-        # return self.act(self.conv(self.bn(x)))
-
     def forward_fuse(self, x):
         return self.act(self.conv(x))
 
 
 def autopad(k, p=None, d=1):
-    # kernel, padding, dilation
-    # 对输入的特征层进行自动padding，按照Same原则
     if d > 1:
         # actual kernel-size
         k = d * (k - 1) + 1 if isinstance(k,
@@ -102,32 +94,18 @@ class PCDB(nn.Module):
         b, c, h, w =x.size()
 
         x1 = x
-        # print(f"x_shape{x.shape}")
         x1 = self.Channelconfusion(x,2)
         x1 = self.PConV1(x1)
-        # print(f"x1_shape{x1.shape}")
         x2 = torch.cat([x1, x], dim=1 )
-        # print(f"x2_shape{x2.shape}")
         x2 = self.Conv1(x2)
-        # print(f"x2_shape{x2.shape}")
-        # x2 = self.conv2(x2)
         x3 = x2.view(b * 8, -1, h, w)
-        # print(f"x3_shape{x3.shape}")
         x_0, _ = x3.chunk(2, dim=1)
-        # print(f"x0_shape{x_0.shape}")
         x_spatial = self.Spatial_attention(x2)
         x_Channel = self.Channel_attention(x2)
         x4 = torch.cat([x_spatial,x_Channel], dim=1 )
-        # x4 = (x_0*x_Channel)*x_spatial
-        # print(f"x4_shape{x4.shape}")
-        # x5 = torch.cat([x4,x_0], dim=1)
-        # print(f"x5_shape{x5.shape}")
         out = x4.contiguous().view(b, -1, h, w)
-        # print(f"out_shape{out.shape}")
         out = self.Channelconfusion(out,2)
-        # print(f"out_shape{out.shape}")
         out = self.relu(self.bn(out))
-        # print(f"out_shape{out.shape}")
         if self.add:
             out = x + self.pconv2(out)
         else:
@@ -244,14 +222,9 @@ class PConv(nn.Module):
         return x
 
     def forward_split_cat(self, x):
-        # for training/inference
-        # 将 x 通道分为两部分，一部分为 in_channel//n_div, 另一部分为 in_channel - in_channel//n_div
         x1, x2 = torch.split(x, [self.dim_conv3, self.dim_untouched], dim=1)
-        # 对 x1 部分卷积 --> in_channel = in_channel // n_div; output_channel = in_channel // n_div --> 保持通道数不变
         x1 = self.partial_conv3(x1)
-        # 在通道上拼接 x1, x2
         x = torch.cat((x1, x2), 1)
-        # 对 x 做一个卷积，改变通道数
         x = self.conv(x)
         return x
 
@@ -278,34 +251,29 @@ class CARAFE(nn.Module):
     def forward(self, in_tensor):
         N, C, H, W = in_tensor.size()
 
-        # N,C,H,W -> N,C,delta*H,delta*W
-        # kernel prediction module
-        kernel_tensor = self.down(in_tensor)  # (N, Cm, H, W)
-        kernel_tensor = self.encoder(kernel_tensor)  # (N, S^2 * Kup^2, H, W)
-        # (N, S^2 * Kup^2, H, W)->(N, Kup^2, S*H, S*W)
+        kernel_tensor = self.down(in_tensor)  
+        kernel_tensor = self.encoder(kernel_tensor)  
         kernel_tensor = F.pixel_shuffle(kernel_tensor, self.up_factor)
-        kernel_tensor = F.softmax(kernel_tensor, dim=1)  # (N, Kup^2, S*H, S*W)
+        kernel_tensor = F.softmax(kernel_tensor, dim=1)  
         kernel_tensor = kernel_tensor.unfold(
-            2, self.up_factor, step=self.up_factor)  # (N, Kup^2, H, W*S, S)
+            2, self.up_factor, step=self.up_factor)  
         kernel_tensor = kernel_tensor.unfold(
-            3, self.up_factor, step=self.up_factor)  # (N, Kup^2, H, W, S, S)
+            3, self.up_factor, step=self.up_factor) 
         kernel_tensor = kernel_tensor.reshape(
-            N, self.kernel_size ** 2, H, W, self.up_factor ** 2)  # (N, Kup^2, H, W, S^2)
+            N, self.kernel_size ** 2, H, W, self.up_factor ** 2)  
         kernel_tensor = kernel_tensor.permute(
-            0, 2, 3, 1, 4)  # (N, H, W, Kup^2, S^2)
+            0, 2, 3, 1, 4) 
 
-        # content-aware reassembly module
-        # tensor.unfold: dim, size, step
+       
         in_tensor = F.pad(in_tensor, pad=(self.kernel_size // 2, self.kernel_size // 2,
                                           self.kernel_size // 2, self.kernel_size // 2),
-                          mode='constant', value=0)  # (N, C, H+Kup//2+Kup//2, W+Kup//2+Kup//2)
+                          mode='constant', value=0)  
         # (N, C, H, W+Kup//2+Kup//2, Kup)
         in_tensor = in_tensor.unfold(2, self.kernel_size, step=1)
         in_tensor = in_tensor.unfold(
-            3, self.kernel_size, step=1)  # (N, C, H, W, Kup, Kup)
-        in_tensor = in_tensor.reshape(N, C, H, W, -1)  # (N, C, H, W, Kup^2)
-        in_tensor = in_tensor.permute(0, 2, 3, 1, 4)  # (N, H, W, C, Kup^2)
-
+            3, self.kernel_size, step=1) 
+        in_tensor = in_tensor.reshape(N, C, H, W, -1) 
+        in_tensor = in_tensor.permute(0, 2, 3, 1, 4) 
         out_tensor = torch.matmul(
             in_tensor, kernel_tensor)  # (N, H, W, C, S^2)
         out_tensor = out_tensor.reshape(N, H, W, -1)
@@ -403,8 +371,7 @@ class Conv(nn.Module):
 
 
 class Bottleneck(nn.Module):
-    # 标准瓶颈结构，残差结构
-    # c1为输入通道数，c2为输出通道数
+   
     def __init__(self, c1, c2, shortcut=True, g=1, k=(3, 3), e=0.5):
         super(Bottleneck, self).__init__()
         c_ = int(c2 * e)  # hidden channels
@@ -445,14 +412,6 @@ class ACmix(nn.Module):
             Conv_1(self.out_planes, self.in_planes, 1),
         )
         self.change_channels = Conv_1(self.in_planes, self.out_planes, 1)
-        # self.conv4_gobal = nn.Conv2d(in_planes, 1, kernel_size=1, stride=1)
-        # self.sigomid = nn.Sigmoid()
-        # for group_id in range(0, 4):
-        #     self.interact = nn.Conv2d(in_planes // 4, in_planes // 4, 1, 1, )
-        # self.group_num = 16
-        # self.eps = 1e-10
-        # self.gamma = nn.Parameter(torch.randn(in_planes, 1, 1))
-        # self.beta = nn.Parameter(torch.zeros(in_planes, 1, 1))
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.max_pool = nn.AdaptiveMaxPool2d(1)
         self.fc = nn.Sequential(
@@ -525,18 +484,14 @@ class DropPath(nn.Module):
 def window_partition(x, window_size: int):
     B, H, W, C = x.shape
     x = x.view(B, H // window_size, window_size, W // window_size, window_size, C)
-    # permute: [B, H//Mh, Mh, W//Mw, Mw, C] -> [B, H//Mh, W//Mh, Mw, Mw, C]
-    # view: [B, H//Mh, W//Mh, Mw, Mw, C] -> [B*num_windows, Mh, Mw, C]
+    
     windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)
     return windows
 
 
 def window_reverse(windows, window_size: int, H: int, W: int):
     B = int(windows.shape[0] / (H * W / window_size / window_size))
-    # view: [B*num_windows, Mh, Mw, C] -> [B, H//Mh, W//Mw, Mh, Mw, C]
     x = windows.view(B, H // window_size, W // window_size, window_size, window_size, -1)
-    # permute: [B, H//Mh, W//Mw, Mh, Mw, C] -> [B, H//Mh, Mh, W//Mw, Mw, C]
-    # view: [B, H//Mh, Mh, W//Mw, Mw, C] -> [B, H, W, C]
     x = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(B, H, W, -1)
     return x
 
@@ -555,24 +510,21 @@ class PatchEmbed(nn.Module):
     def forward(self, x):
         _, _, H, W = x.shape
 
-        # padding
-        # 如果输入图片的H，W不是patch_size的整数倍，需要进行padding
+       
         pad_input = (H % self.patch_size[0] != 0) or (W % self.patch_size[1] != 0)
         if pad_input:
-            # (W_left, W_right, H_top,H_bottom, C_front, C_back)
-            # pad是从后往前，从左往右，从上往下，原顺序是（B,C,H,W) pad顺序就是(W，H，C）
+           
             x = F.pad(x, (0, self.patch_size[1] - W % self.patch_size[1],
                           0, self.patch_size[0] - H % self.patch_size[0],
                           0, 0))
 
-        # 下采样patch_size倍
+       
         x = self.proj(x)
         _, _, H, W = x.shape
-        # flatten: [B, C, H, W] -> [B, C, HW]
-        # transpose: [B, C, HW] -> [B, HW, C]
+        
         x = x.flatten(2).transpose(1, 2)
         x = self.norm(x)
-        return x, H, W  # 这里是经过padding的H和W
+        return x, H, W  
 
 
 class PatchMerging(nn.Module):
@@ -592,20 +544,17 @@ class PatchMerging(nn.Module):
 
         x = x.view(B, H, W, C)
 
-        # padding
-        # 因为是下采样两倍，如果输入feature map的H，W不是2的整数倍，需要进行padding
+      
         pad_input = (H % 2 == 1) or (W % 2 == 1)
         if pad_input:
-            # 此时（B,H,W,C)依然是从后向前
-            # (C_front, C_back, W_left, W_right, H_top, H_bottom)
-            # 注意这里的Tensor通道是[B, H, W, C]，所以会和官方文档有些不同
+           
             x = F.pad(x, (0, 0, 0, W % 2, 0, H % 2))
 
         x0 = x[:, 0::2, 0::2, :]  # [B, H/2, W/2, C]
         x1 = x[:, 1::2, 0::2, :]  # [B, H/2, W/2, C]
         x2 = x[:, 0::2, 1::2, :]  # [B, H/2, W/2, C]
         x3 = x[:, 1::2, 1::2, :]  # [B, H/2, W/2, C]
-        x = torch.cat([x0, x1, x2, x3], -1)  # [B, H/2, W/2, 4*C],这里的-1就是在C的维度上拼接
+        x = torch.cat([x0, x1, x2, x3], -1) 
         x = x.view(B, -1, 4 * C)  # [B, H/2*W/2, 4*C]
 
         x = self.norm(x)
