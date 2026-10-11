@@ -408,9 +408,7 @@ class MsConv(nn.Module):
         x_2 = self.conv2_1(x)
         x_2 = self.conv2_2(x_2)
         x_00 = x+x_0+x_1+x_2
-        # print(f"x_00: {x_00.shape}")
         x = self.bn(self.conv3(x_00))
-        # print(f"x: {x.shape}")
         return x
 
 
